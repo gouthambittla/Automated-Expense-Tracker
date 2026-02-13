@@ -1,23 +1,25 @@
 import { CustomHeader } from '@/src/header/CustomHeader';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Avatar, IconButton, useTheme } from 'react-native-paper';
+import MonthlySpending from './components/MonthlySpending';
+import RecentTransactions from './components/RecentTransactions';
 
 const Home = () => {
     const theme = useTheme();
-    const name = 'Jonathan';
+    const name = 'prawns pulao ';
     const subtitle = 'Track Your Finance Goals';
     const totalBalance = '$ 43,520';
     const remainingBalance = '$1,200';
     const onMenuPress = () => console.log('Menu pressed');
 
     return (
-        <View style={{ flex: 1 }}>
+        <ScrollView style={{ flex: 1 }}>
             <CustomHeader>
                 <View style={styles.topRow}>
                     <Avatar.Image
                         size={48}
-                        source={{ uri: 'https://i.pravatar.cc/100?img=12' }}
+                        source={{ uri: 'https://i.pravatar.cc/100?img=25' }}
                         style={styles.avatar}
                     />
 
@@ -52,10 +54,11 @@ const Home = () => {
                     </Text>
                 </View>
             </CustomHeader>
-            <View style={{ flex: 1, padding: 16 }}>
-                <Text>Home Screen Content</Text>
+            <View style={styles.mainContent}>
+                <MonthlySpending />
+                <RecentTransactions />
             </View>
-        </View>
+        </ScrollView>
     );
 }
 
@@ -106,5 +109,10 @@ const styles = StyleSheet.create({
         marginTop: 8,
         opacity: 0.9,
         fontSize: 14,
+    },
+
+    mainContent: {
+        padding: 16,
+        marginBottom: 90,
     },
 });
