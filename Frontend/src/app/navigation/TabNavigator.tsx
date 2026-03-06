@@ -1,4 +1,5 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Icon, useTheme } from 'react-native-paper';
@@ -32,6 +33,7 @@ const FloatingAddButton = ({ onPress }: { onPress: () => void }) => {
 const TabNavigator = () => {
     const insets = useSafeAreaInsets();
     const theme = useTheme();
+    const navigation = useNavigation();
 
     return (
         <Tab.Navigator
@@ -85,7 +87,7 @@ const TabNavigator = () => {
                     tabBarButton: () => (
                         <FloatingAddButton
                             onPress={() => {
-                                console.log('Add Expense');
+                                navigation.navigate('AddExpense' as never);
                             }}
                         />
                     ),

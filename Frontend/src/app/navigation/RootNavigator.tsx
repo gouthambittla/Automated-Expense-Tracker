@@ -1,4 +1,5 @@
 import Analytics from '@/src/screens/analytics/Analytics';
+import AddExpense from '@/src/screens/addExpense/AddExpense';
 import Home from '@/src/screens/home/Home';
 import Profile from '@/src/screens/profile/Profile';
 import Transcations from '@/src/screens/transcations/Transcations';
@@ -25,6 +26,11 @@ export default function RootNavigator() {
                     <Stack.Screen name='Analytics' component={Analytics} />
                     <Stack.Screen name='Transcations' component={Transcations} />
                     <Stack.Screen name='Profile' component={Profile} />
+                    <Stack.Screen
+                        name='AddExpense'
+                        component={AddExpense}
+                        options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+                    />
                 </Stack.Navigator>
             </NavigationContainer>
         </LayoutWrapper>
