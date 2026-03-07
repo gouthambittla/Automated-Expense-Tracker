@@ -1,0 +1,16 @@
+Backend/node_modules/
+Backend/dist/
+Backend/.env
+Backend/npm-debug.log
+Backend/yarn-error.log
+Backend/.DS_Store
+Backend/.vscode/
+Frontend/node_modules/
+Frontend/.expo/
+Frontend/expo-env.d.ts
+Frontend/dist/
+Frontend/.env
+Frontend/npm-debug.log
+Frontend/yarn-error.log
+Frontend/.DS_Store
+Frontend/.vscode/
