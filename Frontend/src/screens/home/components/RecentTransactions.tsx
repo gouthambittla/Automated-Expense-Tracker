@@ -1,13 +1,23 @@
 import { StyleSheet, Text, View } from 'react-native'
 import React from 'react'
 import { Icon, useTheme } from 'react-native-paper'
-import { lightTheme } from '@/src/theme/GlobalTheme'
 import CustomCard from '@/src/styleComponents/CustomCard'
-import { dummyTransactions } from '@/src/services/constants'
 
-const RecentTransactions = () => {
+type Transaction = {
+    id: string | number;
+    name?: string;
+    category?: string;
+    amount?: number;
+    date?: string;
+    icon?: string;
+    iconBgColor?: string;
+};
+
+const RecentTransactions = ({ transactions }: { transactions?: Transaction[] }) => {
     const theme = useTheme()
     const styles = createStyles(theme)
+
+    const list = transactions || []
 
     return (
         <>
@@ -17,11 +27,16 @@ const RecentTransactions = () => {
             </View>
             <View>
                 <CustomCard>
-                    {dummyTransactions.map((tx) => (
-                        <View key={tx.id} style={{ marginBottom: 12 }}>
+                    {list.length === 0 ? (
+                        <Text style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', paddingVertical: 20 }}>
+                            No transactions yet.
+                        </Text>
+                    ) : null}
+                    {list.map((tx) => (
+                        <View key={String(tx.id)} style={{ marginBottom: 12 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                                 <View style={[styles.iconContainer, { backgroundColor: tx.iconBgColor }]}>
-                                    <Icon source={tx.icon} size={24} />
+                                    <Icon source={tx.icon as any} size={24} />
                                 </View>
 
                                 <View style={{ flex: 1 }}>
