@@ -13,7 +13,17 @@ export const requireAuth = (req, res, next) => {
     const token = authHeader.split(" ")[1];
     const decoded = verifyAccessToken(token);
 
-    req.user = decoded;
+    req.user = {
+      ...decoded,
+      id: decoded.userId,
+    };
+
+    if (!req.user.id) {
+      return res.status(401).json({
+        message: "Invalid token payload",
+      });
+    }
+
     next();
   } catch (error) {
     return res.status(401).json({
