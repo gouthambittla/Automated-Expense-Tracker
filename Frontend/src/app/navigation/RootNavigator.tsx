@@ -8,17 +8,35 @@ import SignupScreen from '@/src/screens/signup/SignupScreen';
 import { useAuth } from '@/src/context/AuthContext';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import { LayoutWrapper } from './LayoutWrapper';
 import TabNavigator from './TabNavigator';
+import { getUserInfoRequest } from '@/src/services/authApi';
+import { useSetUser } from '@/src/store/useStore';
 
 const Stack = createNativeStackNavigator();
 
 export default function RootNavigator() {
-    const { user, loading } = useAuth();
+    const { user, loading, token } = useAuth();
     const theme = useTheme();
+    const setUser = useSetUser();
+
+    useEffect(() => {
+        const loadUser = async () => {
+            if (!token) return;
+            try {
+                const data = await getUserInfoRequest(token);
+                const u = data?.user || null;
+                setUser(u);
+            } catch (err) {
+                console.log('Failed to fetch user info', err);
+            }
+        };
+
+        loadUser();
+    }, [token, setUser]);
 
     if (loading) {
         return (

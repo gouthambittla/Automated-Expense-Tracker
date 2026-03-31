@@ -6,11 +6,12 @@ import MonthlySpending from './components/MonthlySpending';
 import RecentTransactions from './components/RecentTransactions';
 import { useAuth } from '@/src/context/AuthContext';
 import { getExpensesRequest } from '@/src/services/expenseAPI';
-import { useExpenses, useSetExpenses } from '@/src/store/useStore';
+import { useExpenses, useSetExpenses, useGetUser } from '@/src/store/useStore';
 
 const Home = () => {
     const theme = useTheme();
-    const name = 'prawns pulao ';
+    const user = useGetUser();
+    const name = user?.name ?? "";
     const subtitle = 'Track Your Finance Goals';
     const totalBalance = '$ 43,520';
     const remainingBalance = '$1,200';
