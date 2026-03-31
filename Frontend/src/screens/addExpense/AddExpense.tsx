@@ -14,13 +14,11 @@ import {
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Icon, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '@/src/context/AuthContext';
+import { createExpenseRequest, getExpensesRequest } from '@/src/services/expenseAPI';
+import { useAddExpense, useSetExpenses } from '@/src/store/useStore';
 
 const categories = ['Food', 'Transport', 'Shopping', 'Bills', 'Entertainment', 'Other'];
-
-const getToday = () => {
-    const date = new Date();
-    return formatDate(date);
-};
 
 const formatDate = (date: Date) => {
     const day = String(date.getDate()).padStart(2, '0');
@@ -33,9 +31,14 @@ const AddExpense = () => {
     const theme = useTheme();
     const navigation = useNavigation();
     const { width } = useWindowDimensions();
+    const { token } = useAuth();
+    const addExpense = useAddExpense();
+    const setExpenses = useSetExpenses();
+
     const isWide = width >= 700;
     const screenBg = theme.dark ? theme.colors.surface : '#ECECEC';
     const cardBg = theme.dark ? theme.colors.surfaceVariant : '#F8F8F8';
+
     const [activeCategory, setActiveCategory] = useState('Food');
     const [customCategory, setCustomCategory] = useState('');
     const [amount, setAmount] = useState('');
@@ -47,6 +50,8 @@ const AddExpense = () => {
     const [showPaymentMethods, setShowPaymentMethods] = useState(false);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+
     const paymentMethods = ['Cash', 'Card', 'UPI', 'Bank Transfer'];
     const formattedDate = formatDate(selectedDate);
 
@@ -58,18 +63,102 @@ const AddExpense = () => {
         setAmount(cleaned);
     };
 
-    const onSaveExpense = () => {
+    const normalizeEntryType = (value: 'Expense' | 'Paid to Person') => {
+        return value === 'Expense' ? 'expense' : 'paid_to_person';
+    };
+
+    const normalizePaymentMethod = (value: string) => {
+        return value.toLowerCase().replace(/\s+/g, '_');
+    };
+
+    const onSaveExpense = async () => {
         const parsedAmount = Number(amount);
+
+        if (!token) {
+            Alert.alert('Authentication error', 'Please login again.');
+            return;
+        }
+
         if (!amount || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
             Alert.alert('Invalid amount', 'Please enter a valid expense amount.');
             return;
         }
 
-        Alert.alert(
-            'Expense saved',
-            `Amount: ${parsedAmount.toFixed(2)}\nCategory: ${activeCategory}\nPayment: ${paymentMethod}`,
-        );
-        navigation.goBack();
+        if (entryType === 'Expense') {
+            const finalCategory = activeCategory === 'Other' ? customCategory.trim() : activeCategory;
+
+            if (!finalCategory) {
+                Alert.alert('Missing category', 'Please enter a category.');
+                return;
+            }
+        }
+
+        if (entryType === 'Paid to Person' && !paidToPersonName.trim()) {
+            Alert.alert('Missing name', 'Please enter the person name.');
+            return;
+        }
+
+        try {
+            setSubmitting(true);
+
+            const finalCategory =
+                entryType === 'Expense'
+                    ? activeCategory === 'Other'
+                        ? customCategory.trim()
+                        : activeCategory
+                    : null;
+
+            const payload = {
+                entryType: normalizeEntryType(entryType),
+                sourceType: 'manual',
+                amount: parsedAmount,
+                currency: 'INR',
+                title:
+                    entryType === 'Expense'
+                        ? finalCategory || 'Expense'
+                        : `Paid to ${paidToPersonName.trim()}`,
+                category: entryType === 'Expense' ? finalCategory : null,
+                paidTo: entryType === 'Paid to Person' ? paidToPersonName.trim() : null,
+                paymentFor: entryType === 'Paid to Person' ? paidToPersonFor.trim() || null : null,
+                paymentMethod: normalizePaymentMethod(paymentMethod),
+                paymentDate: selectedDate.toISOString(),
+                notes: notes.trim() || null,
+                paymentProofUrl: null,
+                isUserVerified: true,
+                metadata: {
+                    createdFrom: 'mobile_app',
+                },
+            };
+
+            const created = await createExpenseRequest(token, payload);
+
+            // refresh full list from server and update store
+            try {
+                const data = await getExpensesRequest(token);
+                const expenses = data.expenses || [];
+
+                const mapped = expenses.map((e: any, idx: number) => ({
+                    id: e.id ?? idx,
+                    name: e.title || e.category || e.paid_to || e.payment_for || 'Expense',
+                    category: e.category || e.payment_for || '',
+                    amount: e.amount ?? e.value ?? 0,
+                    date: new Date(e.payment_date || e.paymentDate || e.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric' }),
+                    icon: e.category ? (String(e.category).toLowerCase().includes('food') ? 'silverware-fork-knife' : 'currency-inr') : 'currency-inr',
+                    iconBgColor: theme.colors.tertiaryContainer,
+                }));
+
+                setExpenses(mapped);
+            } catch (err) {
+                console.error('Failed to add created expense to store as fallback', err);
+            }
+
+            Alert.alert('Success', 'Expense added successfully');
+            navigation.goBack();
+        } catch (error: any) {
+            Alert.alert('Failed to save expense', error?.message || 'Something went wrong');
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const onDateChange = (event: DateTimePickerEvent, pickedDate?: Date) => {
@@ -162,46 +251,58 @@ const AddExpense = () => {
                     })}
                 </View>
 
-                <Text style={[styles.sectionTitle, { color: theme.colors.onSurface, fontSize: isWide ? 24 : 20 }]}>
-                    Category
-                </Text>
-                <View style={styles.chipsRow}>
-                    {categories.map((category) => {
-                        const isActive = activeCategory === category;
-                        return (
-                            <TouchableOpacity
-                                key={category}
-                                onPress={() => setActiveCategory(category)}
+                {entryType === 'Expense' ? (
+                    <>
+                        <Text
+                            style={[styles.sectionTitle, { color: theme.colors.onSurface, fontSize: isWide ? 24 : 20 }]}
+                        >
+                            Category
+                        </Text>
+                        <View style={styles.chipsRow}>
+                            {categories.map((category) => {
+                                const isActive = activeCategory === category;
+                                return (
+                                    <TouchableOpacity
+                                        key={category}
+                                        onPress={() => setActiveCategory(category)}
+                                        style={[
+                                            styles.chip,
+                                            {
+                                                borderColor: theme.colors.outline,
+                                                backgroundColor: isActive ? theme.colors.surfaceVariant : 'transparent',
+                                            },
+                                        ]}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.chipLabel,
+                                                { color: theme.colors.onSurface, fontSize: isWide ? 18 : 15 },
+                                            ]}
+                                        >
+                                            {category}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+
+                        {activeCategory === 'Other' ? (
+                            <View
                                 style={[
-                                    styles.chip,
-                                    {
-                                        borderColor: theme.colors.outline,
-                                        backgroundColor: isActive ? theme.colors.surfaceVariant : 'transparent',
-                                    },
+                                    styles.notesBox,
+                                    { borderColor: theme.colors.outline, backgroundColor: cardBg, minHeight: 78 },
                                 ]}
                             >
-                                <Text
-                                    style={[
-                                        styles.chipLabel,
-                                        { color: theme.colors.onSurface, fontSize: isWide ? 18 : 15 },
-                                    ]}
-                                >
-                                    {category}
-                                </Text>
-                            </TouchableOpacity>
-                        );
-                    })}
-                </View>
-                {activeCategory === 'Other' ? (
-                    <View style={[styles.notesBox, { borderColor: theme.colors.outline, backgroundColor: cardBg, minHeight: 78 }]}>
-                        <TextInput
-                            value={customCategory}
-                            onChangeText={setCustomCategory}
-                            placeholder="Type your category (e.g., Gifts, Charity, Repairs)"
-                            placeholderTextColor={theme.colors.onSurfaceVariant}
-                            style={[styles.inlineInput, { color: theme.colors.onSurface, fontSize: isWide ? 18 : 16 }]}
-                        />
-                    </View>
+                                <TextInput
+                                    value={customCategory}
+                                    onChangeText={setCustomCategory}
+                                    placeholder="Type your category"
+                                    placeholderTextColor={theme.colors.onSurfaceVariant}
+                                    style={[styles.inlineInput, { color: theme.colors.onSurface, fontSize: isWide ? 18 : 16 }]}
+                                />
+                            </View>
+                        ) : null}
+                    </>
                 ) : null}
 
                 {entryType === 'Paid to Person' ? (
@@ -220,7 +321,7 @@ const AddExpense = () => {
                         <TextInput
                             value={paidToPersonFor}
                             onChangeText={setPaidToPersonFor}
-                            placeholder="What was this for? (e.g., Loan return, Shared dinner)"
+                            placeholder="What was this for?"
                             placeholderTextColor={theme.colors.onSurfaceVariant}
                             style={[styles.inlineInput, { color: theme.colors.onSurface, fontSize: isWide ? 18 : 16 }]}
                         />
@@ -242,6 +343,7 @@ const AddExpense = () => {
                     </Text>
                     <Icon source="chevron-down" size={22} color={theme.colors.onSurfaceVariant} />
                 </TouchableOpacity>
+
                 {showPaymentMethods ? (
                     <View style={[styles.paymentList, { borderColor: theme.colors.outline, backgroundColor: cardBg }]}>
                         {paymentMethods.map((method) => (
@@ -253,9 +355,7 @@ const AddExpense = () => {
                                     setShowPaymentMethods(false);
                                 }}
                             >
-                                <Text style={[styles.paymentItemText, { color: theme.colors.onSurface }]}>
-                                    {method}
-                                </Text>
+                                <Text style={[styles.paymentItemText, { color: theme.colors.onSurface }]}>{method}</Text>
                             </TouchableOpacity>
                         ))}
                     </View>
@@ -276,11 +376,12 @@ const AddExpense = () => {
                     </Text>
                     <TouchableOpacity style={styles.dateInnerRow} onPress={() => setShowDatePicker(true)}>
                         <Text style={[styles.dateValue, { color: theme.colors.onSurface, fontSize: isWide ? 22 : 18 }]}>
-                            {formattedDate || getToday()}
+                            {formattedDate}
                         </Text>
                         <Icon source="calendar-blank-outline" size={20} color={theme.colors.onSurfaceVariant} />
                     </TouchableOpacity>
                 </View>
+
                 {showDatePicker ? (
                     <View style={[styles.pickerWrap, { borderColor: theme.colors.outline, backgroundColor: cardBg }]}>
                         <DateTimePicker
@@ -323,8 +424,21 @@ const AddExpense = () => {
                         Add Receipt
                     </Text>
                 </TouchableOpacity>
-                <TouchableOpacity activeOpacity={0.9} style={[styles.saveButton, { backgroundColor: theme.colors.primary }]} onPress={onSaveExpense}>
-                    <Text style={[styles.saveButtonText, { color: theme.colors.onPrimary }]}>Save Expense</Text>
+
+                <TouchableOpacity
+                    activeOpacity={0.9}
+                    style={[
+                        styles.saveButton,
+                        {
+                            backgroundColor: submitting ? theme.colors.surfaceDisabled : theme.colors.primary,
+                        },
+                    ]}
+                    onPress={onSaveExpense}
+                    disabled={submitting}
+                >
+                    <Text style={[styles.saveButtonText, { color: theme.colors.onPrimary }]}>
+                        {submitting ? 'Saving...' : 'Save Expense'}
+                    </Text>
                 </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
@@ -333,10 +447,9 @@ const AddExpense = () => {
 
 export default AddExpense;
 
+
 const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-    },
+    safeArea: { flex: 1 },
     contentContainer: {
         alignSelf: 'center',
         width: '100%',
@@ -349,16 +462,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
     },
-    title: {
-        fontWeight: '700',
-    },
-    amountHeader: {
-        marginTop: 18,
-        alignItems: 'center',
-    },
-    amountLabel: {
-        fontWeight: '500',
-    },
+    title: { fontWeight: '700' },
+    amountHeader: { marginTop: 18, alignItems: 'center' },
+    amountLabel: { fontWeight: '500' },
     amountRow: {
         marginTop: 10,
         flexDirection: 'row',
@@ -366,19 +472,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         columnGap: 12,
     },
-    currency: {
-        fontWeight: '500',
-    },
+    currency: { fontWeight: '500' },
     amountValue: {
         minWidth: 120,
         paddingVertical: 0,
         fontWeight: '400',
         textAlign: 'left',
     },
-    sectionTitle: {
-        marginTop: 28,
-        fontWeight: '700',
-    },
+    sectionTitle: { marginTop: 28, fontWeight: '700' },
     chipsRow: {
         marginTop: 18,
         flexDirection: 'row',
@@ -399,18 +500,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         columnGap: 8,
     },
-    typeChipLabel: {
-        fontWeight: '600',
-    },
+    typeChipLabel: { fontWeight: '600' },
     chip: {
         borderWidth: 1,
         borderRadius: 999,
         paddingVertical: 10,
         paddingHorizontal: 16,
     },
-    chipLabel: {
-        fontWeight: '500',
-    },
+    chipLabel: { fontWeight: '500' },
     field: {
         marginTop: 20,
         minHeight: 58,
@@ -421,9 +518,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
     },
-    fieldText: {
-        fontWeight: '500',
-    },
+    fieldText: { fontWeight: '500' },
     paymentList: {
         marginTop: 8,
         borderWidth: 1,
