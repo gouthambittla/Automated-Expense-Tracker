@@ -53,3 +53,16 @@ export const signupRequest = async (payload: SignupPayload): Promise<AuthRespons
 
     return handleResponse(response);
 };
+
+export const getUserInfoRequest = async (token: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/user`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+        },
+    });
+
+    const data = await handleResponse(response);
+    return data;
+};
