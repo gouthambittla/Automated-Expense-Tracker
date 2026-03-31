@@ -11,17 +11,18 @@ import {
     View,
 } from 'react-native';
 
-
 export default function SignupScreen() {
     const { signup } = useAuth();
     const navigation = useNavigation();
+
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
     const handleSignup = async () => {
-        if (!email || !password) {
-            Alert.alert('Error', 'Please enter email and password');
+        if (!name || !email || !password) {
+            Alert.alert('Error', 'Please enter name, email and password');
             return;
         }
 
@@ -32,7 +33,7 @@ export default function SignupScreen() {
 
         try {
             setSubmitting(true);
-            await signup(email, password);
+            await signup(name, email, password);
         } catch (error: any) {
             Alert.alert('Signup failed', error?.message || 'Something went wrong');
         } finally {
@@ -44,6 +45,13 @@ export default function SignupScreen() {
         <SafeAreaView style={styles.container}>
             <View style={styles.card}>
                 <Text style={styles.title}>Create account</Text>
+
+                <TextInput
+                    style={styles.input}
+                    placeholder="Name"
+                    value={name}
+                    onChangeText={setName}
+                />
 
                 <TextInput
                     style={styles.input}
