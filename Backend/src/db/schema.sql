@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS users (
   name VARCHAR(100) NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
+  monthly_budget NUMERIC(12,2),
+  daily_budget NUMERIC(12,2),
   created_at TIMESTAMP DEFAULT NOW()
 );
 
