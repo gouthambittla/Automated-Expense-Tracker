@@ -1,9 +1,10 @@
 import { useAuth } from '@/src/context/AuthContext';
 import { CustomHeader } from '@/src/header/CustomHeader';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { Avatar, Button, Text, TextInput, useTheme } from 'react-native-paper';
-import { useGetUser } from '@/src/store/useStore';
+import { useGetUser, useSetUser } from '@/src/store/useStore';
+import { getUserInfoRequest, updateUserBudgetRequest } from '@/src/services/authApi';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 const Profile = () => {
@@ -18,15 +19,42 @@ const Profile = () => {
         return initials || 'U';
     };
     const [modalVisible, setModalVisible] = useState(false);
-    const [monthlyThreshold, setMonthlyThreshold] = useState('23123');
-    const [dailyThreshold, setDailyThreshold] = useState('1234');
-    const [inputValue, setInputValue] = useState('23123');
+    const [monthlyThreshold, setMonthlyThreshold] = useState('');
+    const [dailyThreshold, setDailyThreshold] = useState('');
+    const [inputValue, setInputValue] = useState('');
     const [activeLimit, setActiveLimit] = useState<'monthly' | 'daily'>('monthly');
+    const setStoreUser = useSetUser();
+    const token = (useAuth() as any).token;
 
     const handleSave = () => {
-        if (activeLimit === 'monthly') setMonthlyThreshold(inputValue);
-        else setDailyThreshold(inputValue);
-        setModalVisible(false);
+        const payload: any = {};
+        const parsed = inputValue === '' ? null : Number(inputValue);
+        if (activeLimit === 'monthly') payload.monthlyBudget = parsed;
+        else payload.dailyBudget = parsed;
+
+        if (!token) {
+            // fallback: update local only
+            if (activeLimit === 'monthly') setMonthlyThreshold(inputValue);
+            else setDailyThreshold(inputValue);
+            setModalVisible(false);
+            return;
+        }
+
+        updateUserBudgetRequest(token, payload)
+            .then((res) => {
+                const user = res.user;
+                setStoreUser(user);
+                setMonthlyThreshold(user.monthly_budget ? String(user.monthly_budget) : '');
+                setDailyThreshold(user.daily_budget ? String(user.daily_budget) : '');
+                setModalVisible(false);
+            })
+            .catch((err) => {
+                console.error('Failed to update budget', err);
+                // still update locally
+                if (activeLimit === 'monthly') setMonthlyThreshold(inputValue);
+                else setDailyThreshold(inputValue);
+                setModalVisible(false);
+            });
     };
 
     const handleOpen = (limit: 'monthly' | 'daily') => {
@@ -34,6 +62,20 @@ const Profile = () => {
         setInputValue(limit === 'monthly' ? monthlyThreshold : dailyThreshold);
         setModalVisible(true);
     };
+
+    useEffect(() => {
+        if (!token) return;
+        getUserInfoRequest(token)
+            .then((res) => {
+                const user = res.user;
+                setStoreUser(user);
+                setMonthlyThreshold(user?.monthly_budget ? String(user.monthly_budget) : '');
+                setDailyThreshold(user?.daily_budget ? String(user.daily_budget) : '');
+            })
+            .catch((err) => {
+                console.error('Failed to fetch user info', err);
+            });
+    }, [token, setStoreUser]);
 
     const formattedMonthly = Number(monthlyThreshold).toLocaleString('en-IN');
     const formattedDaily = Number(dailyThreshold).toLocaleString('en-IN');

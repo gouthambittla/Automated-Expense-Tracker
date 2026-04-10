@@ -21,10 +21,26 @@ export type AuthResponse = {
 };
 
 const handleResponse = async (response: Response) => {
-    const data = await response.json();
+    const contentType = response.headers.get('content-type') || '';
+
+    // try to parse JSON when possible, fall back to text for HTML/error pages
+    let data: any = null;
+    if (contentType.includes('application/json')) {
+        data = await response.json();
+    } else {
+        // attempt to read text (could be HTML error page)
+        const text = await response.text();
+        // try parse JSON anyway in case server mis-set content-type
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            data = { __raw: text };
+        }
+    }
 
     if (!response.ok) {
-        throw new Error(data?.message || 'Request failed');
+        const message = data?.message || data?.error || data?.__raw || 'Request failed';
+        throw new Error(message);
     }
 
     return data;
@@ -61,6 +77,20 @@ export const getUserInfoRequest = async (token: string) => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
         },
+    });
+
+    const data = await handleResponse(response);
+    return data;
+};
+
+export const updateUserBudgetRequest = async (token: string, payload: { monthlyBudget?: number | null; dailyBudget?: number | null }) => {
+    const response = await fetch(`${API_BASE_URL}/api/user/budget`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
     });
 
     const data = await handleResponse(response);
