@@ -19,7 +19,6 @@ export type CreateExpensePayload = {
     metadata?: Record<string, unknown> | null;
     isUserVerified?: boolean;
 };
-console.log(API_BASE_URL);
 export const createExpenseRequest = async (
     token: string,
     payload: CreateExpensePayload
