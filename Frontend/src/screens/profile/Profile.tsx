@@ -2,12 +2,21 @@ import { useAuth } from '@/src/context/AuthContext';
 import { CustomHeader } from '@/src/header/CustomHeader';
 import React, { useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
-import { Button, Text, TextInput, useTheme } from 'react-native-paper';
+import { Avatar, Button, Text, TextInput, useTheme } from 'react-native-paper';
+import { useGetUser } from '@/src/store/useStore';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 const Profile = () => {
     const theme = useTheme();
-    const { user, logout } = useAuth();
+    const { user: authUser, logout } = useAuth();
+    const storeUser = useGetUser();
+
+    const getInitials = (str?: string | null) => {
+        if (!str) return 'U';
+        const parts = str.trim().split(/\s+/);
+        const initials = parts.map(p => (p && p[0]) || '').join('').slice(0, 2).toUpperCase();
+        return initials || 'U';
+    };
     const [modalVisible, setModalVisible] = useState(false);
     const [monthlyThreshold, setMonthlyThreshold] = useState('23123');
     const [dailyThreshold, setDailyThreshold] = useState('1234');
@@ -45,12 +54,24 @@ const Profile = () => {
 
             <View style={styles.content}>
                 {/* Signed in card */}
-                <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-                    <Text variant="titleMedium">Signed in as</Text>
-                    <Text variant="bodyLarge" style={styles.emailText}>
-                        {user?.email ?? 'No email available'}
-                    </Text>
-                </View>
+                <Pressable style={[styles.card, styles.profileCard, { backgroundColor: theme.colors.surface }]} onPress={() => { }}>
+                    <View style={styles.profileLeft}>
+                        <Avatar.Text
+                            size={48}
+                            label={getInitials(storeUser?.name ?? authUser?.email)}
+                            color={theme.colors.onPrimary}
+                            style={{ backgroundColor: theme.colors.primary }}
+                        />
+                        <View style={styles.profileInfo}>
+                            <Text variant="titleMedium" numberOfLines={1} ellipsizeMode="tail">
+                                {storeUser?.name ?? authUser?.name ?? authUser?.email ?? 'Unknown User'}
+                            </Text>
+                            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }} numberOfLines={1} ellipsizeMode="tail">
+                                {storeUser?.email ?? authUser?.email ?? 'No email available'}
+                            </Text>
+                        </View>
+                    </View>
+                </Pressable>
 
                 {/* Threshold card */}
                 <Pressable
@@ -66,9 +87,9 @@ const Profile = () => {
                             color={theme.colors.onSurfaceVariant}
                         />
                         <View style={styles.thresholdTextContainer}>
-                            <Text variant="titleMedium">Monthly Spending</Text>
+                            <Text variant="titleMedium">Monthly Budget</Text>
                             <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>
-                                Set your monthly spending limit
+                                Set your monthly budget
                             </Text>
                         </View>
                     </View>
@@ -104,9 +125,9 @@ const Profile = () => {
                             color={theme.colors.onSurfaceVariant}
                         />
                         <View style={styles.thresholdTextContainer}>
-                            <Text variant="titleMedium">Daily Limit</Text>
+                            <Text variant="titleMedium">Daily Budget</Text>
                             <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>
-                                Set your daily spending limit
+                                Set your daily budget
                             </Text>
                         </View>
                     </View>
@@ -144,11 +165,11 @@ const Profile = () => {
                 <Pressable style={styles.overlay} onPress={() => setModalVisible(false)}>
                     <Pressable style={[styles.modalCard, { backgroundColor: theme.colors.surface }]}>
                         <Text variant="titleLarge" style={styles.modalTitle}>
-                            {activeLimit === 'monthly' ? 'Set Monthly Spending Threshold' : 'Set Daily Spending Limit'}
+                            {activeLimit === 'monthly' ? 'Set Monthly Budget' : 'Set Daily Budget'}
                         </Text>
 
                         <TextInput
-                            label={activeLimit === 'monthly' ? 'Monthly Threshold Amount' : 'Daily Threshold Amount'}
+                            label={activeLimit === 'monthly' ? 'Monthly Budget Amount' : 'Daily Budget Amount'}
                             value={inputValue}
                             onChangeText={setInputValue}
                             keyboardType="numeric"
@@ -162,8 +183,8 @@ const Profile = () => {
                             style={[styles.inputHelper, { color: theme.colors.onSurfaceVariant }]}
                         >
                             {activeLimit === 'monthly'
-                                ? 'Set your monthly spending limit to track expenses'
-                                : 'Set your daily spending limit to track expenses'}
+                                ? 'Set your monthly budget to track expenses'
+                                : 'Set your daily budget to track expenses'}
                         </Text>
 
                         <View style={styles.modalActions}>
@@ -225,6 +246,30 @@ const styles = StyleSheet.create({
     editTouch: {
         padding: 6,
         borderRadius: 12,
+    },
+
+    // profile card
+    profileCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+    },
+
+    profileLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        flex: 1,
+    },
+
+    profileInfo: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+
+    profileRight: {
+        marginLeft: 12,
     },
 
     logoutContent: { minHeight: 48 },

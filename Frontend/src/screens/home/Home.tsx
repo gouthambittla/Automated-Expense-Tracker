@@ -20,7 +20,6 @@ const Home = () => {
     const { token } = useAuth();
 
     const transactions = useExpenses();
-    console.log('Home transactions from store:', transactions);
     const setTransactions = useSetExpenses();
     const [loadingTx, setLoadingTx] = useState(false);
     const [txError, setTxError] = useState<string | null>(null);
@@ -32,7 +31,6 @@ const Home = () => {
 
         const load = async () => {
             setLoadingTx(true);
-            console.log('Loading expenses with token:', token);
             try {
                 const data = await getExpensesRequest(token);
                 const expenses = data.expenses || [];
@@ -56,7 +54,6 @@ const Home = () => {
 
                 setTransactions(Array.from(byId.values()));
             } catch (err: any) {
-                console.log('Failed to load expenses', err);
                 setTxError(err?.message || 'Failed to load expenses');
             } finally {
                 setLoadingTx(false);
