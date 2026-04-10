@@ -1,7 +1,10 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View, TouchableOpacity } from 'react-native'
 import React from 'react'
-import { Icon, useTheme } from 'react-native-paper'
+import { useTheme } from 'react-native-paper'
+import { useNavigation } from '@react-navigation/native'
 import CustomCard from '@/src/styleComponents/CustomCard'
+import CategoryIcon from '@/src/utils/CategoryIcon'
+import { formatDayDateMonth } from '@/src/utils/dateUtils'
 
 type Transaction = {
     id: string | number;
@@ -10,6 +13,7 @@ type Transaction = {
     amount?: number;
     date?: string;
     icon?: string;
+    entryType?: string;
     iconBgColor?: string;
 };
 
@@ -19,11 +23,19 @@ const RecentTransactions = ({ transactions }: { transactions?: Transaction[] }) 
 
     const list = transactions || []
 
+    const navigation = useNavigation();
+
+    const onViewAll = () => {
+        navigation.navigate('Transcations' as never);
+    };
+
     return (
         <>
             <View style={styles.textContainer}>
                 <Text style={styles.title}>Recent Transactions</Text>
-                <Text style={styles.viewAll}>View All</Text>
+                <TouchableOpacity onPress={onViewAll} accessibilityRole="button">
+                    <Text style={styles.viewAll}>View All</Text>
+                </TouchableOpacity>
             </View>
             <View>
                 <CustomCard>
@@ -35,9 +47,7 @@ const RecentTransactions = ({ transactions }: { transactions?: Transaction[] }) 
                     {list.map((tx) => (
                         <View key={String(tx.id)} style={{ marginBottom: 12 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                                <View style={[styles.iconContainer, { backgroundColor: tx.iconBgColor }]}>
-                                    <Icon source={tx.icon as any} size={24} />
-                                </View>
+                                <CategoryIcon category={tx.category} entryType={tx.entryType} merchant={tx.name} size={24} bgColor={tx.iconBgColor} />
 
                                 <View style={{ flex: 1 }}>
                                     <Text style={{ color: theme.colors.onSurface, fontWeight: '600' }}>
@@ -53,7 +63,7 @@ const RecentTransactions = ({ transactions }: { transactions?: Transaction[] }) 
                                         ₹{tx.amount}
                                     </Text>
                                     <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>
-                                        {tx.date}
+                                        {formatDayDateMonth(tx.date)}
                                     </Text>
                                 </View>
                             </View>

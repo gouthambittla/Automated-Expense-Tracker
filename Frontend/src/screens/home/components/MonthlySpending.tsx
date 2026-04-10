@@ -2,6 +2,7 @@ import { StyleSheet, View } from 'react-native'
 import React from 'react'
 import { Card, ProgressBar, Text } from 'react-native-paper';
 import { appColors, lightTheme, shadows } from '../../../theme/GlobalTheme';
+import WeeklyTrendChart from './WeeklyTrendChart';
 
 const MonthlySpending = () => {
     const spent = 25650;
@@ -34,6 +35,7 @@ const MonthlySpending = () => {
                     <Text style={[styles.percentageText, { color: lightTheme.colors.onSurfaceVariant }]}>
                         {percentageText}% of monthly budget used
                     </Text>
+                
                 </Card.Content>
             </Card>
         </View>

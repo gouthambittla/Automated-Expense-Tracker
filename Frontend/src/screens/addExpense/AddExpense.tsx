@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/context/AuthContext';
 import { createExpenseRequest, getExpensesRequest } from '@/src/services/expenseAPI';
 import { useAddExpense, useSetExpenses } from '@/src/store/useStore';
+import { pickIconName } from '@/src/utils/CategoryIcon';
 
 const categories = ['Food', 'Transport', 'Shopping', 'Bills', 'Entertainment', 'Other'];
 
@@ -26,6 +27,17 @@ const formatDate = (date: Date) => {
     const year = date.getFullYear();
     return `${day}-${month}-${year}`;
 };
+
+const mapExpenseToStoreItem = (expense: any, fallbackIndex = 0, tertiaryContainer?: string) => ({
+    id: expense.id ?? fallbackIndex,
+    name: expense.title || expense.category || expense.paid_to || expense.payment_for || 'Expense',
+    category: expense.category || expense.payment_for || '',
+    amount: expense.amount ?? expense.value ?? 0,
+    date: expense.payment_date || expense.paymentDate || expense.created_at,
+    icon: pickIconName(expense.category, expense.entry_type),
+    entryType: expense.entry_type,
+    iconBgColor: tertiaryContainer,
+});
 
 const AddExpense = () => {
     const theme = useTheme();
@@ -132,20 +144,16 @@ const AddExpense = () => {
 
             const created = await createExpenseRequest(token, payload);
 
+            if (created?.expense) {
+                addExpense(mapExpenseToStoreItem(created.expense, 0, theme.colors.tertiaryContainer));
+            }
+
             // refresh full list from server and update store
             try {
                 const data = await getExpensesRequest(token);
                 const expenses = data.expenses || [];
 
-                const mapped = expenses.map((e: any, idx: number) => ({
-                    id: e.id ?? idx,
-                    name: e.title || e.category || e.paid_to || e.payment_for || 'Expense',
-                    category: e.category || e.payment_for || '',
-                    amount: e.amount ?? e.value ?? 0,
-                    date: new Date(e.payment_date || e.paymentDate || e.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric' }),
-                    icon: e.category ? (String(e.category).toLowerCase().includes('food') ? 'silverware-fork-knife' : 'currency-inr') : 'currency-inr',
-                    iconBgColor: theme.colors.tertiaryContainer,
-                }));
+                const mapped = expenses.map((e: any, idx: number) => mapExpenseToStoreItem(e, idx, theme.colors.tertiaryContainer));
 
                 setExpenses(mapped);
             } catch (err) {
