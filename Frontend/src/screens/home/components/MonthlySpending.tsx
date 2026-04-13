@@ -1,41 +1,59 @@
 import { StyleSheet, View } from 'react-native'
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Card, ProgressBar, Text } from 'react-native-paper';
 import { appColors, lightTheme, shadows } from '../../../theme/GlobalTheme';
-import WeeklyTrendChart from './WeeklyTrendChart';
+import { useExpenses, useGetUser } from '@/src/store/useStore';
 
 const MonthlySpending = () => {
-    const spent = 25650;
-    const budget = 30000;
-    const percentage = spent / budget;
-    const percentageText = Math.round(percentage * 100);
+    const transactions = useExpenses();
+    const user = useGetUser();
+
+    const { spent, budget, percentage, percentageText } = useMemo(() => {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+        const monthSpent = transactions.reduce((acc: number, tx: any) => {
+            const d = tx?.date ? new Date(tx.date) : null;
+            if (!d || isNaN(d.getTime())) return acc;
+            if (d >= start && d < end) return acc + Number(tx.amount || 0);
+            return acc;
+        }, 0);
+
+        const userBudget = Number(user?.monthly_budget ?? user?.monthlyBudget ?? 0) || 0;
+        const pct = userBudget > 0 ? monthSpent / userBudget : 0;
+
+        return {
+            spent: monthSpent,
+            budget: userBudget,
+            percentage: Math.min(Math.max(pct, 0), 1),
+            percentageText: userBudget > 0 ? Math.round(pct * 100) : 0,
+        };
+    }, [transactions, user]);
 
     return (
         <View>
             <Card style={[styles.card, { backgroundColor: lightTheme.colors.surface }, shadows.small]}>
                 <Card.Content style={styles.cardContent}>
-                    {/* Title and Amount Row */}
                     <View style={styles.headerRow}>
                         <Text style={[styles.cardTitle, { color: lightTheme.colors.onSurface }]}>
                             Monthly Spending
                         </Text>
                         <Text style={[styles.amountText, { color: lightTheme.colors.onSurface }]}>
-                            ₹{spent.toLocaleString()} / ₹{budget.toLocaleString()}
+                            ₹{spent.toLocaleString('en-IN')} {budget ? `/ ₹${budget.toLocaleString('en-IN')}` : ''}
                         </Text>
                     </View>
 
-                    {/* Progress Bar */}
                     <ProgressBar
                         progress={percentage}
                         color={appColors.warning}
                         style={[styles.progressBar, { backgroundColor: lightTheme.colors.outline }]}
                     />
 
-                    {/* Percentage Text */}
                     <Text style={[styles.percentageText, { color: lightTheme.colors.onSurfaceVariant }]}>
                         {percentageText}% of monthly budget used
                     </Text>
-                
+
                 </Card.Content>
             </Card>
         </View>
